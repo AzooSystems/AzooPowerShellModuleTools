@@ -7,6 +7,6 @@ Install-PowerShellNupkg is based on work by Jordan Borean (@jborean93) on <https
 > \# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>  
 > \# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-## Github attestation tooling
+## GitHub attestation tooling
 
 TBD
