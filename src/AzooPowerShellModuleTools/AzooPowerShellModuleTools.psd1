@@ -1,7 +1,7 @@
 @{
     RootModule = 'AzooPowerShellModuleTools.psm1'
     ModuleVersion = '0.0.0'
-    GUID = 'f4a7b6b7-0ad4-4e3d-a4e6-7cf8a1d9d66a'
+    GUID = '9114d907-4a4b-462a-9ea7-9f6b63e16fb3'
     Author = 'AzooSystems'
     CompanyName = 'AzooSystems'
     Copyright = '(c) AzooSystems. All rights reserved.'
