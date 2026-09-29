@@ -8,13 +8,15 @@ Function Install-PowerShellNupkg {
     .SYNOPSIS
     Installs a PowerShell module as a nupkg.
     .DESCRIPTION
-    Installs the PowerShell module nupkg specified by the URI on the local system. This module can be set up in the
+    Installs the PowerShell module nupkg specified by the URI or local package path on the local system. This module can be set up in the
     path specified by using -Path, or in the PSModule path controlled by -Scope. The default is to install the module
     in the CurrentUser scope so it is picked up automatically by PowerShell.
     .PARAMETER Uri
     The URI of the nupkg file to download and install. You can use Get-GitHubNupkgUri to get the URI to the latest
     nupkg stored on a GitHub release. Otherwise this can be the URI to PowerShell Gallery nupkg for the version
     specified.
+    .PARAMETER PackagePath
+    The path to a local nupkg file to install.
     .PARAMETER Scope
     Used instead of -Path, determines the PSModulePath that module is installed to. Can be set to 'CurrentUser' or
     'AllUsers' and defaults to 'CurrentUser'. Admin privileges are typically required when installing a module to the
@@ -37,23 +39,33 @@ Function Install-PowerShellNupkg {
     .EXAMPLE Install a module to C:\temp\PSPrivilege
     $nupkg_uri = Get-GitHubNupkgUri -Account jborean93 -Name PSPrivilege
     Install-PowerShellNupkg -Uri $nupkg_uri -Path C:\temp
+    .EXAMPLE Install a module from a local nupkg file
+    Install-PowerShellNupkg -PackagePath C:\temp\PSPrivilege.0.1.0.nupkg
     .NOTES
     For ease of use, this module will unblock the files so they are not seem by Windows as downloaded from the internet
     and can be loaded easily.
     #>
     [OutputType([System.Management.AUtomation.PSModuleInfo])]
-    [CmdletBinding(DefaultParameterSetName='Install')]
+    [CmdletBinding(DefaultParameterSetName='UriInstall')]
     Param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory=$true, ParameterSetName='UriInstall')]
+        [Parameter(Mandatory=$true, ParameterSetName='UriPath')]
         [System.Uri]
         $Uri,
 
-        [Parameter(ParameterSetName='Install')]
+        [Parameter(Mandatory=$true, ParameterSetName='PackageInstall')]
+        [Parameter(Mandatory=$true, ParameterSetName='PackagePath')]
+        [System.String]
+        $PackagePath,
+
+        [Parameter(ParameterSetName='UriInstall')]
+        [Parameter(ParameterSetName='PackageInstall')]
         [ValidateSet('AllUsers', 'CurrentUser')]
         [System.String]
         $Scope = 'CurrentUser',
 
-        [Parameter(ParameterSetName='Path')]
+        [Parameter(Mandatory=$true, ParameterSetName='UriPath')]
+        [Parameter(Mandatory=$true, ParameterSetName='PackagePath')]
         [System.String]
         $Path,
 
@@ -64,7 +76,12 @@ Function Install-PowerShellNupkg {
         $PassThru
     )
 
-    if ($PSCmdlet.ParameterSetName -eq 'Path') {
+    if ($PackagePath -and -not (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
+        Write-Error -Message "Local package file '$PackagePath' was not found" -Category ObjectNotFound
+        return
+    }
+
+    if ($PSCmdlet.ParameterSetName -in @('UriPath', 'PackagePath')) {
         # Resolve the Path so it become the absolute path based on the current PS Path.
         $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
         Write-Verbose -Message "Setting the resolved PSModule path to install to as '$Path'"
@@ -107,9 +124,14 @@ Function Install-PowerShellNupkg {
     try {
         # Use a .zip extension so Shell.Application can extract the file.
         $temp_file = Join-Path -Path $temp_folder -ChildPath 'temp_nupkg.zip'
-        Write-Verbose -Message "Downloading '$($Uri)' to '$temp_file'"
-        $web_client = New-Object -TypeName System.Net.WebClient
-        $web_client.DownloadFile($Uri, $temp_file)
+        if ($PackagePath) {
+            Write-Verbose -Message "Copying local package '$PackagePath' to '$temp_file'"
+            Copy-Item -LiteralPath $PackagePath -Destination $temp_file -Force
+        } else {
+            Write-Verbose -Message "Downloading '$($Uri)' to '$temp_file'"
+            $web_client = New-Object -TypeName System.Net.WebClient
+            $web_client.DownloadFile($Uri, $temp_file)
+        }
 
         $use_legacy = $false
         try {
