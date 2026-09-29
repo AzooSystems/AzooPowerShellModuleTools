@@ -170,12 +170,38 @@ Function Install-PowerShellNupkg {
         $version = $package_nuspec.package.metadata.version
         Write-Verbose -Message "Parsed package nuspec and gathered: Name=$name, Version=$version"
 
-        $module_path = Join-Path -Path $Path -ChildPath $name
+        $invalid_path_component = '[/\\:<>\x00-\x1f"|?*]'
+        if ([string]::IsNullOrEmpty($name) -or $name -in @('.', '..') -or $name -match $invalid_path_component -or [System.IO.Path]::IsPathRooted($name)) {
+            Write-Error -Message 'The package ID in the nuspec is not a valid directory name' -Category InvalidData
+            return
+        }
+        if ([string]::IsNullOrEmpty($version) -or $version -in @('.', '..') -or $version -match $invalid_path_component -or [System.IO.Path]::IsPathRooted($version)) {
+            Write-Error -Message 'The package version in the nuspec is not a valid directory name' -Category InvalidData
+            return
+        }
+
+        $install_root = [System.IO.Path]::GetFullPath($Path)
+        $module_path = Join-Path -Path $install_root -ChildPath $name
         # PowerShell 5.1+ supports modules being stored for a particular version. If running on 5.1+ we should place
         # the files inside a folder of that particular version.
         if ($PSVersionTable.PSVersion -ge [Version]'5.1') {
             Write-Verbose -Message "PowerShell version supports version specific module path, appending module version $version"
             $module_path = Join-Path -Path $module_path -ChildPath $version
+        }
+        $module_path = [System.IO.Path]::GetFullPath($module_path)
+
+        $install_root_prefix = $install_root
+        if (-not $install_root_prefix.EndsWith([string][System.IO.Path]::DirectorySeparatorChar) -and
+            -not $install_root_prefix.EndsWith([string][System.IO.Path]::AltDirectorySeparatorChar)) {
+            $install_root_prefix += [System.IO.Path]::DirectorySeparatorChar
+        }
+        $path_comparison = [System.StringComparison]::Ordinal
+        if ([int][System.IO.Path]::DirectorySeparatorChar -eq 92) {
+            $path_comparison = [System.StringComparison]::OrdinalIgnoreCase
+        }
+        if (-not $module_path.StartsWith($install_root_prefix, $path_comparison)) {
+            Write-Error -Message 'The resolved module path is outside the installation root' -Category InvalidData
+            return
         }
 
         if (-not (Test-Path -LiteralPath $module_path)) {
