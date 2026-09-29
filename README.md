@@ -1,2 +1,3 @@
 # AzooPowerShellModuleTools
-PowerShell module tooling
+
+Empty PowerShell module.

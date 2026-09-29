@@ -1,0 +1,48 @@
+name: build-and-publish-module
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Extract version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $refName = "${{ github.ref_name }}"
+          $version = if ($refName.StartsWith("v")) { $refName.Substring(1) } else { $refName }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+  publish:
+    needs: version
+    uses: AzooSystems/AzooBuilder/.github/workflows/build-and-release-ps-module.yml@b4c12fc6836495e9b5b95d863d88463d83997c24
+    with:
+      version: ${{ needs.version.outputs.version }}
+      moduleName: AzooPowerShellModuleTools
+      modulePath: ./src/AzooPowerShellModuleTools
+      publishToGitHubPackagesNuGetFeed: true
+      gitHubPackagesNuGetFeedOrganizationName: AzooSystems
+      gitHubPackagesNuGetFeedRepositoryName: ${{ github.event.repository.name }}
+      gitHubPackagesNuGetFeedUri: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+      publishToGitHubContainerRegistry: true
+      publishToPowerShellGallery: true
+      publishToGitHubRelease: true
+
+    secrets:
+      gitHubPackagesNuGetFeedToken: ${{ secrets.GITHUB_TOKEN }}
+      gitHubContainerRegistryToken: ${{ secrets.GITHUB_TOKEN }}
+      galleryApiKey: ${{ secrets.GALLERY_API_KEY }}
+      gitHubReleaseToken: ${{ secrets.GITHUB_TOKEN }}
