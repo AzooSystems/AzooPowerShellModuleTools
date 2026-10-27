@@ -28,7 +28,7 @@ jobs:
 
   publish:
     needs: version
-    uses: AzooSystems/AzooBuilder/.github/workflows/build-and-release-ps-module.yml@b4c12fc6836495e9b5b95d863d88463d83997c24
+    uses: AzooSystems/AzooBuilder/.github/workflows/build-and-release-ps-module.yml@e7669a62fbb5cce33ce7985fd37715d0edd6dba7
     with:
       version: ${{ needs.version.outputs.version }}
       moduleName: AzooPowerShellModuleTools
